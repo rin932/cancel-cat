@@ -26,7 +26,7 @@ export function CreateRoomForm() {
         error?: string;
       };
       if (!response.ok || !payload.id) {
-        setError(payload.error ?? "상자를 만들지 못했어요.");
+        setError(payload.error ?? "방을 만들지 못했어요.");
         return;
       }
       router.push(`/r/${payload.id}?host=1`);
@@ -38,11 +38,8 @@ export function CreateRoomForm() {
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="w-full rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md"
-    >
-      <label className="block text-sm font-medium text-muted">
+    <form onSubmit={onSubmit} className="flex w-full flex-col gap-5">
+      <label className="block text-sm text-muted">
         약속 이름
         <input
           required
@@ -50,21 +47,21 @@ export function CreateRoomForm() {
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="예: 금요일 치맥"
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-void/70 px-4 py-3 text-ink outline-none transition focus:border-amber"
+          className="field mt-2"
+          autoComplete="off"
         />
       </label>
 
-      <div className="mt-5">
-        <div className="flex items-center justify-between text-sm font-medium text-muted">
+      <div>
+        <div className="flex items-center justify-between text-sm text-muted">
           <span>몇 명인가요?</span>
-          <span className="text-amber">{capacity}명 · 전원 동의 시 파기</span>
+          <span>{capacity}명</span>
         </div>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="stepper mt-2">
           <button
             type="button"
             aria-label="인원 줄이기"
             onClick={() => setCapacity((value) => Math.max(MIN_CAPACITY, value - 1))}
-            className="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 text-2xl leading-none"
           >
             −
           </button>
@@ -74,34 +71,26 @@ export function CreateRoomForm() {
             max={MAX_CAPACITY}
             value={capacity}
             onChange={(event) => setCapacity(Number(event.target.value))}
-            className="h-2 flex-1 accent-amber"
+            className="h-2 flex-1 accent-ink"
           />
           <button
             type="button"
             aria-label="인원 늘리기"
             onClick={() => setCapacity((value) => Math.min(MAX_CAPACITY, value + 1))}
-            className="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 text-2xl leading-none"
           >
             +
           </button>
         </div>
-        <p className="mt-2 text-xs text-muted/80">
-          2명 이상. 로그인 없이, 링크만 있으면 됩니다.
-        </p>
       </div>
 
       {error ? (
-        <p className="mt-4 text-sm text-ember" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="big-button mt-6 w-full rounded-full py-4 text-lg font-bold tracking-tight"
-      >
-        {pending ? "상자 만드는 중…" : "상자 만들고 링크 받기"}
+      <button type="submit" disabled={pending} className="btn btn-danger">
+        {pending ? "만드는 중…" : "방 만들기"}
       </button>
     </form>
   );
