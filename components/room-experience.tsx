@@ -113,12 +113,21 @@ export function RoomExperience({ roomId, isHost = false }: RoomExperienceProps) 
   }, [room, voted]);
 
   async function copyLink() {
+    const url = shareUrl || `${window.location.origin}/r/${roomId}`;
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 6000);
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      await navigator.clipboard.writeText(url);
     } catch {
-      setCopied(false);
+      const field = document.createElement("textarea");
+      field.value = url;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.left = "-9999px";
+      document.body.appendChild(field);
+      field.select();
+      document.execCommand("copy");
+      field.remove();
     }
   }
 
@@ -212,7 +221,9 @@ export function RoomExperience({ roomId, isHost = false }: RoomExperienceProps) 
             <button
               type="button"
               onClick={copyLink}
-              className="flex-1 rounded-full bg-white/10 px-4 py-2 text-sm"
+              className={`flex-1 rounded-full px-4 py-2 text-sm ${
+                copied ? "bg-moss font-semibold text-void" : "bg-white/10"
+              }`}
             >
               {copied ? "복사됨" : "링크 복사"}
             </button>
@@ -330,3 +341,4 @@ function Confetti() {
     </div>
   );
 }
+
