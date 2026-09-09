@@ -22,7 +22,12 @@ export const metadata: Metadata = {
   description:
     "가기 싫은 마음을 상자 속에 넣으세요. 모두가 넣었을 때만 약속이 파기됩니다. 한 명이라도 안 누르면, 아무 일도 없었던 것처럼.",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    process.env.NEXT_PUBLIC_SITE_URL ??
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000"),
   ),
   openGraph: {
     title: "캔슬캣 — 약속 취소 전용 상자",

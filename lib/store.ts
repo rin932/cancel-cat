@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { applyVote, createRoomRecord } from "./engine";
+import { applyVote, createRoomRecord, ROOM_TTL_MS } from "./engine";
 import { createRoomId } from "./crypto";
 import type { CreateRoomInput, RoomRecord, VoteResult } from "./types";
 
@@ -149,6 +149,69 @@ function roomKey(id: string): string {
   return `cancel-cat:room:${id}`;
 }
 
+function createRuntimeCacheStore(): RoomStore {
+  const ttlSeconds = Math.ceil(ROOM_TTL_MS / 1000);
+
+  async function cache() {
+    const { getCache } = await import("@vercel/functions");
+    return getCache({ namespace: "cancel-cat" });
+  }
+
+  async function read(id: string): Promise<RoomRecord | null> {
+    const value = await (await cache()).get(roomKey(id));
+    if (!value || typeof value !== "object") return null;
+    return value as RoomRecord;
+  }
+
+  async function write(room: RoomRecord): Promise<void> {
+    await (await cache()).set(roomKey(room.id), room, {
+      ttl: ttlSeconds,
+      name: "room",
+    });
+  }
+
+  return {
+    async create(input, now = Date.now()) {
+      const id = createRoomId();
+      const room = createRoomRecord(id, input, now);
+      await write(room);
+      return room;
+    },
+    get: read,
+    async vote(id, tokenHash, now = Date.now()) {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const room = await read(id);
+        if (!room) {
+          return { ok: false, error: "not_found" };
+        }
+        const snapshotCount = room.voteCount;
+        const result = applyVote(room, tokenHash, now);
+        if (!result.ok || result.alreadyVoted) {
+          return result;
+        }
+        const latest = await read(id);
+        if (
+          latest &&
+          latest.voteCount === snapshotCount &&
+          latest.cancelled === room.cancelled
+        ) {
+          await write(result.room);
+          return result;
+        }
+      }
+      const room = await read(id);
+      if (!room) {
+        return { ok: false, error: "not_found" };
+      }
+      const result = applyVote(room, tokenHash, now);
+      if (result.ok && !result.alreadyVoted) {
+        await write(result.room);
+      }
+      return result;
+    },
+  };
+}
+
 function createRedisStore(env: RedisEnv): RoomStore {
   return {
     async create(input, now = Date.now()) {
@@ -184,7 +247,13 @@ let singleton: RoomStore | null = null;
 export function getStore(): RoomStore {
   if (singleton) return singleton;
   const redis = redisEnv();
-  singleton = redis ? createRedisStore(redis) : createFileStore(FILE_STORE_PATH);
+  if (redis) {
+    singleton = createRedisStore(redis);
+  } else if (process.env.VERCEL) {
+    singleton = createRuntimeCacheStore();
+  } else {
+    singleton = createFileStore(FILE_STORE_PATH);
+  }
   return singleton;
 }
 
